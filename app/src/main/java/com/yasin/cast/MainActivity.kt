@@ -595,6 +595,14 @@ private fun LibraryAndPlayerScreen(
                         Button(onClick = onImportFiles, modifier = Modifier.weight(1f)) { Text("افزودن فایل") }
                         Button(onClick = onImportFolder, modifier = Modifier.weight(1f)) { Text("افزودن پوشه") }
                     }
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("جست‌وجو در کتابخانه") },
+                        placeholder = { Text("عنوان یا نام فایل") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    )
                     if (entries.isEmpty()) {
                         Column(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp),
@@ -610,12 +618,14 @@ private fun LibraryAndPlayerScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    } else if (filteredEntries.isEmpty()) {
+                        Text("نتیجه‌ای برای این جست‌وجو پیدا نشد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), textAlign = TextAlign.Center)
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(entries, key = { it.uri }) { entry ->
+                            items(filteredEntries, key = { it.uri }) { entry ->
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                                         Text(
@@ -719,3 +729,11 @@ private fun formatPlaybackTime(milliseconds: Long): String {
     val seconds = totalSeconds % 60L
     return if (hours > 0L) "%d:%02d:%02d".format(hours, minutes, seconds) else "%d:%02d".format(minutes, seconds)
 }
+
+private fun normalizeSearchText(value: String): String =
+    value.lowercase()
+        .replace('ي', 'ی')
+        .replace('ك', 'ک')
+        .replace('ة', 'ه')
+        .replace(Regex("[\\u064B-\\u065F\\u0670]"), "")
+        .trim()
