@@ -347,13 +347,16 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             libraryRepository.saveProgress(uri, position, duration)
             progressLabels[uri] = if (position > 0L) "ادامه از ${position / 1000} ثانیه" else "شروع‌نشده"
+            if (duration != null && PlaybackCompletionRules.isCompleted(position, duration)) {
+                markCurrentItemCompleted()
+            }
         }
     }
 
     private fun markCurrentItemCompleted() {
         val controller = mediaController ?: return
         val uri = selectedUri ?: return
-        if (completedUri == uri) return
+        if (completedUri == uri || playedUris[uri] == true) return
         val duration = controller.duration
         val position = if (duration > 0L) duration else controller.currentPosition
         if (duration <= 0L || !PlaybackCompletionRules.isCompleted(position, duration)) return
