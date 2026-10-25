@@ -265,7 +265,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             libraryRepository.resetPlayback(entry.uri)
             refreshLibrary()
-            playEntry(entry)
+            playEntryInternal(entry)
         }
     }
 
