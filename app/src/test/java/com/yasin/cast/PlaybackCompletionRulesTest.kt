@@ -8,7 +8,7 @@ import org.junit.Test
 class PlaybackCompletionRulesTest {
     @Test
     fun completionRequiresAtLeastThirtySecondsAndNinetyPercent() {
-        assertFalse(PlaybackCompletionRules.isCompleted(29_000L, 30_000L))
+        assertFalse(PlaybackCompletionRules.isCompleted(26_000L, 29_999L))
         assertFalse(PlaybackCompletionRules.isCompleted(26_000L, 30_000L))
         assertTrue(PlaybackCompletionRules.isCompleted(27_000L, 30_000L))
         assertTrue(PlaybackCompletionRules.isCompleted(90_000L, 100_000L))
