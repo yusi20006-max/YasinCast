@@ -7,7 +7,7 @@
 
 YasinCast is a Persian-first native Android app for organizing and listening to locally stored podcasts and audio episodes. Phase 1 must work offline. Online hosting, accounts, publishing, and synchronization are deferred until the offline MVP passes physical-device verification.
 
-Use Kotlin, Jetpack Compose, AndroidX Media3, Android's Storage Access Framework (SAF), Room, and DataStore. Native Android is preferred over a standalone PWA because background audio, lock-screen/system controls, audio focus, and headset/Bluetooth behavior are core requirements.
+Use Kotlin, Jetpack Compose, AndroidX Media3, Android's Storage Access Framework (SAF), Room, and DataStore. Issue #5 introduces Room-backed library/playback-state/history storage; simple preferences remain a separate future DataStore concern. Native Android is preferred over a standalone PWA because background audio, lock-screen/system controls, audio focus, and headset/Bluetooth behavior are core requirements.
 
 ## Layer boundaries
 
