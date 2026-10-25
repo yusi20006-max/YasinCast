@@ -346,6 +346,7 @@ class MainActivity : ComponentActivity() {
         val duration = controller.duration.takeIf { it > 0L }
         lifecycleScope.launch {
             libraryRepository.saveProgress(uri, position, duration)
+            progressLabels[uri] = if (position > 0L) "ادامه از ${position / 1000} ثانیه" else "شروع‌نشده"
         }
     }
 
