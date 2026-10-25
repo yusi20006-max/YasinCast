@@ -19,5 +19,5 @@ The selected folder provider must expose document-tree traversal. Some providers
 
 - The SQLite index survives Activity/app restarts. A URI can still become unusable if the user deletes or moves the source, revokes access, or the provider stops serving it. Such entries can be removed from the app's list and imported again after access is restored.
 - Library metadata is intentionally limited to provider display name, MIME type, and size when available. Embedded tags, duration, playlists, and richer metadata are deferred.
-- This slice does not persist playback position/history; that belongs to Issue #5.
+- Playback position, played/completed state, and recent listening events are now handled by the Room-backed repository described in [history.md](history.md).
 - Automated unit tests cover MIME/extension recognition and size labels. Android SAF behavior, folder-provider compatibility, decoder support, and real-device playback remain unverified until Issue #7 is performed on the target phone.
