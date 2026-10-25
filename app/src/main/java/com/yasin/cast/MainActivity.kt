@@ -127,8 +127,8 @@ class MainActivity : ComponentActivity() {
                         speed = playbackSpeed,
                         onChooseFile = { openAudio.launch(arrayOf("audio/*")) },
                         onPlayPause = { togglePlayback() },
-                        onBack = { mediaController?.seekBack() },
-                        onForward = { mediaController?.seekForward() },
+                        onBack = { seekBy(-15_000L) },
+                        onForward = { seekBy(15_000L) },
                         onSpeed = { changeSpeed() }
                     )
                 }
@@ -152,6 +152,13 @@ class MainActivity : ComponentActivity() {
         if (controller.isPlaying || controller.playWhenReady) controller.pause()
         else if (controller.mediaItemCount > 0) controller.play()
         else openAudio.launch(arrayOf("audio/*"))
+    }
+
+    private fun seekBy(offsetMs: Long) {
+        val controller = mediaController ?: return
+        val target = (controller.currentPosition + offsetMs).coerceAtLeast(0L)
+        val duration = controller.duration
+        controller.seekTo(if (duration > 0L) target.coerceAtMost(duration) else target)
     }
 
     private fun changeSpeed() {
