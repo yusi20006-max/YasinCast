@@ -763,7 +763,7 @@ private fun LibraryAndPlayerScreen(
                 }
                 else -> {
                     Column(
-                        modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 18.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(top = 18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("تنظیمات پخش", style = MaterialTheme.typography.headlineSmall)
