@@ -7,6 +7,8 @@ import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,8 +34,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -174,7 +179,7 @@ class MainActivity : ComponentActivity() {
         }, mainExecutor)
 
         setContent {
-            MaterialTheme {
+            YasinCastTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -552,7 +557,7 @@ private fun LibraryAndPlayerScreen(
     }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF071326), Color(0xFF102D56), Color(0xFF071326)))).padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -572,11 +577,27 @@ private fun LibraryAndPlayerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = { selectedTab = "library" }, modifier = Modifier.weight(1f), enabled = selectedTab != "library") { Text("کتابخانه") }
-                Button(onClick = { selectedTab = "player" }, modifier = Modifier.weight(1f), enabled = selectedTab != "player") { Text("در حال پخش") }
-                Button(onClick = { selectedTab = "settings" }, modifier = Modifier.weight(1f), enabled = selectedTab != "settings") { Text("تنظیمات") }
+                listOf("library" to "کتابخانه", "player" to "پخش", "settings" to "تنظیمات").forEach { (tab, label) ->
+                    Surface(
+                        modifier = Modifier.weight(1f).clickable { selectedTab = tab },
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (selectedTab == tab) Color(0xFF244F86) else Color(0x99203A5D),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (selectedTab == tab) Color(0xFF75DDF5) else Color(0x553D6590)
+                        )
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (selectedTab == tab) Color(0xFFF1F7FF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
-            Card(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            GlassCard(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (selectedUri != null) {
@@ -628,7 +649,7 @@ private fun LibraryAndPlayerScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(filteredEntries, key = { it.uri }) { entry ->
-                                Card(modifier = Modifier.fillMaxWidth()) {
+                                GlassCard(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                                         Text(
                                             text = if (entry.uri == selectedUri) "▶  ${entry.title}" else entry.title,
@@ -707,7 +728,7 @@ private fun LibraryAndPlayerScreen(
                         if (currentBookmarks.isNotEmpty()) {
                             Text("نشانک‌های این فایل", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
                             currentBookmarks.forEach { bookmark ->
-                                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                                GlassCard(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                                     Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
                                         Text(formatPlaybackTime(bookmark.positionMs) + " · " + bookmark.title, style = MaterialTheme.typography.bodyMedium)
                                         if (bookmark.note.isNotBlank()) Text(bookmark.note, style = MaterialTheme.typography.bodySmall)
