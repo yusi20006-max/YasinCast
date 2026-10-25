@@ -65,6 +65,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.google.common.util.concurrent.ListenableFuture
 
+internal data class AudioTrackMetadata(
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val artwork: ByteArray?
+)
+
 class MainActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
@@ -357,7 +364,8 @@ class MainActivity : ComponentActivity() {
         val fallbackTitle = state?.title ?: library.firstOrNull { it.uri == uriString }?.title
             ?: queryAudioEntry(this, uri).title
         val metadata = runCatching {
-            MediaMetadataRetriever().use { retriever ->
+            val retriever = MediaMetadataRetriever()
+            try {
                 retriever.setDataSource(this, uri)
                 val embeddedTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                 val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
@@ -369,6 +377,8 @@ class MainActivity : ComponentActivity() {
                     album = album?.takeIf { it.isNotBlank() },
                     artwork = retriever.embeddedPicture
                 )
+            } finally {
+                retriever.release()
             }
         }.getOrElse {
             AudioTrackMetadata(
