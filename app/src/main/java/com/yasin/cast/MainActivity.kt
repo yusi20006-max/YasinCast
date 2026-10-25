@@ -689,6 +689,34 @@ private fun LibraryAndPlayerScreen(
                             Button(onClick = onForward, enabled = selectedUri != null) { Text("۱۵+ ثانیه") }
                         }
                         Button(onClick = onSpeed, modifier = Modifier.padding(top = 12.dp)) { Text("تغییر سرعت · %.1fx".format(speed)) }
+                        OutlinedTextField(
+                            value = bookmarkNote,
+                            onValueChange = { bookmarkNote = it.take(240) },
+                            label = { Text("یادداشت نشانک (اختیاری)") },
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            singleLine = true
+                        )
+                        Button(
+                            onClick = { onAddBookmark(bookmarkNote); bookmarkNote = "" },
+                            enabled = selectedUri != null,
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                        ) { Text("ذخیرهٔ نشانک در این لحظه") }
+                        val currentBookmarks = bookmarks.filter { it.uri == selectedUri }.sortedBy { it.positionMs }
+                        if (currentBookmarks.isNotEmpty()) {
+                            Text("نشانک‌های این فایل", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+                            currentBookmarks.forEach { bookmark ->
+                                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                                        Text(formatPlaybackTime(bookmark.positionMs) + " · " + bookmark.title, style = MaterialTheme.typography.bodyMedium)
+                                        if (bookmark.note.isNotBlank()) Text(bookmark.note, style = MaterialTheme.typography.bodySmall)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Button(onClick = { onSelectBookmark(bookmark) }, modifier = Modifier.weight(1f)) { Text("رفتن به نشانک") }
+                                            Button(onClick = { onDeleteBookmark(bookmark.id) }) { Text("حذف") }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         if (selectedUri == null) {
                             Text("برای پخش، یک فایل را از بخش کتابخانه انتخاب کنید.", modifier = Modifier.padding(top = 16.dp), textAlign = TextAlign.Center)
                         }
