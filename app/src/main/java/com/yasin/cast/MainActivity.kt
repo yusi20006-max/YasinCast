@@ -13,12 +13,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Slider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +56,9 @@ class MainActivity : ComponentActivity() {
     private val playedUris = mutableStateMapOf<String, Boolean>()
     private val progressLabels = mutableStateMapOf<String, String>()
     private val recentHistory = mutableStateListOf<ListeningEventEntity>()
+    private val bookmarks = mutableStateListOf<AudioBookmark>()
+    private val bookmarkStore by lazy { BookmarkStore(this) }
+    private var sleepTimerStatus by mutableStateOf("تایمر خواب خاموش است")
     private var progressJob: Job? = null
     private var completedUri: String? = null
     private var selectedUri by mutableStateOf<String?>(null)
@@ -145,6 +151,7 @@ class MainActivity : ComponentActivity() {
             libraryRepository.initialize()
             refreshLibrary()
             refreshRecentHistory()
+            refreshBookmarks()
         }
 
         val token = SessionToken(this, android.content.ComponentName(this, PlaybackService::class.java))
@@ -184,6 +191,8 @@ class MainActivity : ComponentActivity() {
                         history = recentHistory,
                         playedUris = playedUris,
                         progressLabels = progressLabels,
+                        bookmarks = bookmarks,
+                        sleepTimerStatus = sleepTimerStatus,
                         onImportFiles = { openAudio.launch(arrayOf("audio/*")) },
                         onImportFolder = { openFolder.launch(null) },
                         onPlayEntry = { playEntry(it) },
@@ -193,7 +202,12 @@ class MainActivity : ComponentActivity() {
                         onBack = { seekBy(-15_000L) },
                         onForward = { seekBy(15_000L) },
                         onSpeed = { changeSpeed() },
-                        onSeekTo = { seekTo(it) }
+                        onSeekTo = { seekTo(it) },
+                        onAddBookmark = { addBookmark(it) },
+                        onDeleteBookmark = { deleteBookmark(it) },
+                        onSelectBookmark = { selectBookmark(it) },
+                        onSetSleepTimer = { setSleepTimer(it) },
+                        onCancelSleepTimer = { cancelSleepTimer() }
                     )
                 }
             }
@@ -215,6 +229,61 @@ class MainActivity : ComponentActivity() {
     private suspend fun refreshRecentHistory() {
         recentHistory.clear()
         recentHistory.addAll(libraryRepository.recentHistory(5))
+    }
+
+    private suspend fun refreshBookmarks() {
+        bookmarks.clear()
+        bookmarks.addAll(bookmarkStore.all())
+    }
+
+    private fun addBookmark(note: String) {
+        val uri = selectedUri
+        if (uri == null) {
+            playbackStatus = "ابتدا یک فایل را پخش یا انتخاب کنید."
+            return
+        }
+        bookmarkStore.add(uri, selectedTitle, mediaController?.currentPosition ?: currentPositionMs, note)
+        lifecycleScope.launch { refreshBookmarks() }
+        playbackStatus = "نشانک ذخیره شد."
+    }
+
+    private fun deleteBookmark(id: Long) {
+        bookmarkStore.remove(id)
+        lifecycleScope.launch { refreshBookmarks() }
+    }
+
+    private fun selectBookmark(bookmark: AudioBookmark) {
+        lifecycleScope.launch {
+            if (mediaController == null) {
+                playbackStatus = "سرویس پخش هنوز آماده نیست."
+                return@launch
+            }
+            if (selectedUri != bookmark.uri) {
+                val entry = library.firstOrNull { it.uri == bookmark.uri }
+                if (entry == null) {
+                    playbackStatus = "فایل نشانک در کتابخانه نیست؛ آن را دوباره وارد کنید."
+                    return@launch
+                }
+                playEntryInternal(entry)
+                delay(600L)
+            }
+            mediaController?.seekTo(bookmark.positionMs)
+            updatePlaybackPosition()
+            playbackStatus = "رفتن به نشانک: " + bookmark.title
+        }
+    }
+
+    private fun setSleepTimer(minutes: Int) {
+        val intent = Intent(this, PlaybackService::class.java)
+            .setAction(PlaybackService.ACTION_SET_SLEEP_TIMER)
+            .putExtra(PlaybackService.EXTRA_MINUTES, minutes)
+        startService(intent)
+        sleepTimerStatus = "توقف پخش پس از " + minutes + " دقیقه"
+    }
+
+    private fun cancelSleepTimer() {
+        startService(Intent(this, PlaybackService::class.java).setAction(PlaybackService.ACTION_CANCEL_SLEEP_TIMER))
+        sleepTimerStatus = "تایمر خواب لغو شد."
     }
 
     private fun persistReadGrant(uri: Uri) {
@@ -456,6 +525,8 @@ private fun LibraryAndPlayerScreen(
     history: List<ListeningEventEntity>,
     playedUris: Map<String, Boolean>,
     progressLabels: Map<String, String>,
+    bookmarks: List<AudioBookmark>,
+    sleepTimerStatus: String,
     onImportFiles: () -> Unit,
     onImportFolder: () -> Unit,
     onPlayEntry: (AudioLibraryEntry) -> Unit,
@@ -465,9 +536,20 @@ private fun LibraryAndPlayerScreen(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onSpeed: () -> Unit,
-    onSeekTo: (Long) -> Unit
+    onSeekTo: (Long) -> Unit,
+    onAddBookmark: (String) -> Unit,
+    onDeleteBookmark: (Long) -> Unit,
+    onSelectBookmark: (AudioBookmark) -> Unit,
+    onSetSleepTimer: (Int) -> Unit,
+    onCancelSleepTimer: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf("library") }
+    var searchQuery by remember { mutableStateOf("") }
+    var bookmarkNote by remember { mutableStateOf("") }
+    val filteredEntries = entries.filter { entry ->
+        val query = normalizeSearchText(searchQuery)
+        query.isBlank() || normalizeSearchText(entry.title).contains(query) || normalizeSearchText(entry.uri.substringAfterLast('/')).contains(query)
+    }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -515,6 +597,14 @@ private fun LibraryAndPlayerScreen(
                         Button(onClick = onImportFiles, modifier = Modifier.weight(1f)) { Text("افزودن فایل") }
                         Button(onClick = onImportFolder, modifier = Modifier.weight(1f)) { Text("افزودن پوشه") }
                     }
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("جست‌وجو در کتابخانه") },
+                        placeholder = { Text("عنوان یا نام فایل") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    )
                     if (entries.isEmpty()) {
                         Column(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp),
@@ -530,12 +620,14 @@ private fun LibraryAndPlayerScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    } else if (filteredEntries.isEmpty()) {
+                        Text("نتیجه‌ای برای این جست‌وجو پیدا نشد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), textAlign = TextAlign.Center)
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(entries, key = { it.uri }) { entry ->
+                            items(filteredEntries, key = { it.uri }) { entry ->
                                 Card(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                                         Text(
@@ -567,7 +659,7 @@ private fun LibraryAndPlayerScreen(
                 }
                 "player" -> {
                     Column(
-                        modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 16.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(top = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -599,6 +691,34 @@ private fun LibraryAndPlayerScreen(
                             Button(onClick = onForward, enabled = selectedUri != null) { Text("۱۵+ ثانیه") }
                         }
                         Button(onClick = onSpeed, modifier = Modifier.padding(top = 12.dp)) { Text("تغییر سرعت · %.1fx".format(speed)) }
+                        OutlinedTextField(
+                            value = bookmarkNote,
+                            onValueChange = { bookmarkNote = it.take(240) },
+                            label = { Text("یادداشت نشانک (اختیاری)") },
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            singleLine = true
+                        )
+                        Button(
+                            onClick = { onAddBookmark(bookmarkNote); bookmarkNote = "" },
+                            enabled = selectedUri != null,
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                        ) { Text("ذخیرهٔ نشانک در این لحظه") }
+                        val currentBookmarks = bookmarks.filter { it.uri == selectedUri }.sortedBy { it.positionMs }
+                        if (currentBookmarks.isNotEmpty()) {
+                            Text("نشانک‌های این فایل", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+                            currentBookmarks.forEach { bookmark ->
+                                Card(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                                        Text(formatPlaybackTime(bookmark.positionMs) + " · " + bookmark.title, style = MaterialTheme.typography.bodyMedium)
+                                        if (bookmark.note.isNotBlank()) Text(bookmark.note, style = MaterialTheme.typography.bodySmall)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Button(onClick = { onSelectBookmark(bookmark) }, modifier = Modifier.weight(1f)) { Text("رفتن به نشانک") }
+                                            Button(onClick = { onDeleteBookmark(bookmark.id) }) { Text("حذف") }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         if (selectedUri == null) {
                             Text("برای پخش، یک فایل را از بخش کتابخانه انتخاب کنید.", modifier = Modifier.padding(top = 16.dp), textAlign = TextAlign.Center)
                         }
@@ -613,6 +733,19 @@ private fun LibraryAndPlayerScreen(
                         Text("سرعت فعلی: %.1fx".format(speed), style = MaterialTheme.typography.bodyLarge)
                         Text("با هر بار انتخاب، سرعت بین ۰٫۸ تا ۲ برابر تغییر می‌کند.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Button(onClick = onSpeed, modifier = Modifier.fillMaxWidth()) { Text("تغییر سرعت پخش") }
+                        Text("تایمر خواب", style = MaterialTheme.typography.titleMedium)
+                        Text(sleepTimerStatus, style = MaterialTheme.typography.bodyMedium)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(15, 30, 45).forEach { minutes ->
+                                Button(onClick = { onSetSleepTimer(minutes) }, modifier = Modifier.weight(1f)) { Text(minutes.toString() + " دقیقه") }
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(60, 90).forEach { minutes ->
+                                Button(onClick = { onSetSleepTimer(minutes) }, modifier = Modifier.weight(1f)) { Text(minutes.toString() + " دقیقه") }
+                            }
+                            Button(onClick = onCancelSleepTimer, modifier = Modifier.weight(1f)) { Text("لغو تایمر") }
+                        }
                         Text("وضعیت پخش: $status", style = MaterialTheme.typography.bodyMedium)
                         Text("YasinCast نسخهٔ ۰٫۱ · طراحی‌شده برای استفادهٔ آفلاین", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (history.isNotEmpty()) {
@@ -639,3 +772,11 @@ private fun formatPlaybackTime(milliseconds: Long): String {
     val seconds = totalSeconds % 60L
     return if (hours > 0L) "%d:%02d:%02d".format(hours, minutes, seconds) else "%d:%02d".format(minutes, seconds)
 }
+
+internal fun normalizeSearchText(value: String): String =
+    value.lowercase()
+        .replace('ي', 'ی')
+        .replace('ك', 'ک')
+        .replace('ة', 'ه')
+        .replace(Regex("[\\u064B-\\u065F\\u0670]"), "")
+        .trim()

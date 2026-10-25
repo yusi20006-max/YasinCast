@@ -10,6 +10,7 @@ YasinCast is a Persian-first native Android podcast and audio library app. The f
 - [Local audio library and SAF import](docs/library.md)
 - [Playback progress and listening history](docs/history.md)
 - [Physical-device acceptance checklist](docs/device-acceptance.md)
+- [Sleep timer, bookmarks, and library search](docs/sleep-timer-bookmarks-search.md)
 - [Issue #1 — architecture](https://github.com/yusi20006-max/YasinCast/issues/1)
 - [Issue #2 — Android build foundation](https://github.com/yusi20006-max/YasinCast/issues/2)
 
@@ -43,4 +44,4 @@ GitHub Actions builds the debug APK and runs unit tests on pushes and pull reque
 
 ## Current status
 
-The app includes a Media3 playback service and a Persian RTL interface with library, now-playing, and settings tabs. Users can import multiple audio documents or select a folder through Android's Storage Access Framework, browse saved entries, resume or restart playback, and remove an entry without deleting its source. The player exposes a seek slider, ±15-second controls, playback speed, elapsed/remaining time, and recent history. The URI index is stored locally and persistable read grants are attempted where supported. See [library notes](docs/library.md), [playback notes](docs/player.md), [history notes](docs/history.md), and [UI notes](docs/ui.md). Physical-device behavior and visual layout still require verification on the target phone.
+The app includes a Media3 playback service and a Persian RTL interface with library, now-playing, and settings tabs. Issue #8 adds local library search, saved playback-position bookmarks with optional notes, and a service-owned sleep timer. Users can import multiple audio documents or select a folder through Android's Storage Access Framework, browse saved entries, resume or restart playback, and remove an entry without deleting its source. The player exposes a seek slider, ±15-second controls, playback speed, elapsed/remaining time, and recent history. The URI index is stored locally and persistable read grants are attempted where supported. See [library notes](docs/library.md), [playback notes](docs/player.md), [history notes](docs/history.md), and [UI notes](docs/ui.md). Physical-device behavior and visual layout still require verification on the target phone.
