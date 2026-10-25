@@ -60,7 +60,7 @@ interface AudioItemDao {
     @Query("DELETE FROM audio_library WHERE uri = :uri")
     suspend fun remove(uri: String)
 
-    @Query("UPDATE audio_library SET lastPositionMs = :positionMs, durationMs = :durationMs WHERE uri = :uri")
+    @Query("UPDATE audio_library SET lastPositionMs = :positionMs, durationMs = COALESCE(:durationMs, durationMs) WHERE uri = :uri")
     suspend fun saveProgress(uri: String, positionMs: Long, durationMs: Long?)
 
     @Query("UPDATE audio_library SET played = :played, lastPlayedAt = :playedAt, lastPositionMs = :positionMs, durationMs = :durationMs WHERE uri = :uri")
