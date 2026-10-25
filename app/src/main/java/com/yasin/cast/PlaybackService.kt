@@ -28,8 +28,6 @@ class PlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true)
             .build()
 
-        player.setSeekBackIncrementMs(15_000)
-        player.setSeekForwardIncrementMs(15_000)
         player.repeatMode = Player.REPEAT_MODE_OFF
         mediaSession = MediaSession.Builder(this, player).build()
     }
