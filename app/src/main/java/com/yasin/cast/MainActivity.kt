@@ -35,13 +35,20 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.google.common.util.concurrent.ListenableFuture
 
 class MainActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
-    private lateinit var libraryStore: AudioLibraryStore
+    private lateinit var libraryRepository: AudioLibraryRepository
     private val library = mutableStateListOf<AudioLibraryEntry>()
+    private val recentHistory = mutableStateListOf<ListeningEventEntity>()
+    private var progressJob: Job? = null
+    private var completedUri: String? = null
     private var selectedUri by mutableStateOf<String?>(null)
     private var selectedTitle by mutableStateOf("هنوز فایلی انتخاب نشده است")
     private var isPlaying by mutableStateOf(false)
@@ -56,13 +63,15 @@ class MainActivity : ComponentActivity() {
                 runCatching { queryAudioEntry(this, uri) }.getOrNull()
                     ?.takeIf { AudioLibraryRules.isAudio(it.mimeType, it.title) }
             }
-            imported.forEach(libraryStore::upsert)
-            refreshLibrary()
-            if (imported.isEmpty()) {
-                playbackStatus = "فایل صوتی قابل‌شناسایی انتخاب نشد."
-            } else {
-                playbackStatus = "${imported.size} فایل به کتابخانه اضافه شد."
-                playEntry(imported.first())
+            lifecycleScope.launch {
+                imported.forEach { libraryRepository.upsert(it) }
+                refreshLibrary()
+                if (imported.isEmpty()) {
+                    playbackStatus = "فایل صوتی قابل‌شناسایی انتخاب نشد."
+                } else {
+                    playbackStatus = "${imported.size} فایل به کتابخانه اضافه شد."
+                    playEntry(imported.first())
+                }
             }
         }
     }
@@ -74,12 +83,14 @@ class MainActivity : ComponentActivity() {
                 playbackStatus = "خواندن پوشه ممکن نشد؛ پوشهٔ دیگری انتخاب کنید."
                 emptyList()
             }
-            found.forEach(libraryStore::upsert)
-            refreshLibrary()
-            playbackStatus = if (found.isEmpty()) {
-                "در این پوشه فایل صوتی قابل‌شناسایی پیدا نشد."
-            } else {
-                "${found.size} فایل صوتی از پوشه اضافه شد."
+            lifecycleScope.launch {
+                found.forEach { libraryRepository.upsert(it) }
+                refreshLibrary()
+                playbackStatus = if (found.isEmpty()) {
+                    "در این پوشه فایل صوتی قابل‌شناسایی پیدا نشد."
+                } else {
+                    "${found.size} فایل صوتی از پوشه اضافه شد."
+                }
             }
         }
     }
@@ -87,9 +98,13 @@ class MainActivity : ComponentActivity() {
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(playing: Boolean) {
             isPlaying = playing
+            if (playing) startProgressCheckpoint() else saveCurrentProgress()
             playbackStatus = when {
                 playing -> "در حال پخش"
-                mediaController?.playbackState == Player.STATE_ENDED -> "پخش به پایان رسید"
+                mediaController?.playbackState == Player.STATE_ENDED -> {
+                    markCurrentItemCompleted()
+                    "پخش به پایان رسید"
+                }
                 mediaController?.playbackState == Player.STATE_BUFFERING -> "در حال آماده‌سازی…"
                 else -> "متوقف"
             }
@@ -112,8 +127,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        libraryStore = AudioLibraryStore(this)
-        refreshLibrary()
+        libraryRepository = AudioLibraryRepository.create(this)
+        lifecycleScope.launch {
+            libraryRepository.initialize()
+            refreshLibrary()
+            refreshRecentHistory()
+        }
 
         val token = SessionToken(this, android.content.ComponentName(this, PlaybackService::class.java))
         val future = MediaController.Builder(this, token).buildAsync()
@@ -124,7 +143,7 @@ class MainActivity : ComponentActivity() {
                 mediaController = controller
                 controller.addListener(playerListener)
                 pendingUri?.let {
-                    startPlayback(controller, it)
+                    lifecycleScope.launch { startPlayback(controller, it) }
                     pendingUri = null
                 }
                 isPlaying = controller.isPlaying
@@ -147,6 +166,7 @@ class MainActivity : ComponentActivity() {
                         status = playbackStatus,
                         playing = isPlaying,
                         speed = playbackSpeed,
+                        history = recentHistory,
                         onImportFiles = { openAudio.launch(arrayOf("audio/*")) },
                         onImportFolder = { openFolder.launch(null) },
                         onPlayEntry = { playEntry(it) },
@@ -161,9 +181,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun refreshLibrary() {
+    private suspend fun refreshLibrary() {
         library.clear()
-        library.addAll(libraryStore.all())
+        library.addAll(libraryRepository.all().map { it.toLibraryEntry() })
+    }
+
+    private suspend fun refreshRecentHistory() {
+        recentHistory.clear()
+        recentHistory.addAll(libraryRepository.recentHistory(5))
     }
 
     private fun persistReadGrant(uri: Uri) {
@@ -177,6 +202,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playEntry(entry: AudioLibraryEntry) {
+        lifecycleScope.launch { playEntryInternal(entry) }
+    }
+
+    private suspend fun playEntryInternal(entry: AudioLibraryEntry) {
         val uri = Uri.parse(entry.uri)
         try {
             contentResolver.openFileDescriptor(uri, "r")?.use { /* Verify that the document is still readable. */ }
@@ -199,23 +228,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startPlayback(controller: MediaController, uri: Uri) {
-        selectedUri = uri.toString()
-        selectedTitle = library.firstOrNull { it.uri == uri.toString() }?.title
+    private suspend fun startPlayback(controller: MediaController, uri: Uri) {
+        val uriString = uri.toString()
+        val state = libraryRepository.playbackState(uriString)
+        selectedUri = uriString
+        selectedTitle = state?.title ?: library.firstOrNull { it.uri == uriString }?.title
             ?: queryAudioEntry(this, uri).title
+        completedUri = null
         controller.setMediaItem(MediaItem.fromUri(uri))
         controller.prepare()
+        val resumeAt = PlaybackCompletionRules.resumePosition(state?.lastPositionMs ?: 0L, state?.durationMs)
+        if (resumeAt > 0L) controller.seekTo(resumeAt)
         controller.play()
-        playbackStatus = "در حال آماده‌سازی…"
+        libraryRepository.recordStarted(uriString, selectedTitle, resumeAt)
+        refreshRecentHistory()
+        playbackStatus = if (resumeAt > 0L) "ادامه از ${resumeAt / 1000} ثانیه" else "در حال آماده‌سازی…"
     }
 
     private fun removeEntry(entry: AudioLibraryEntry) {
-        libraryStore.remove(entry.uri)
-        refreshLibrary()
-        if (selectedUri == entry.uri) {
-            selectedUri = null
-            selectedTitle = "هنوز فایلی انتخاب نشده است"
-            playbackStatus = "از کتابخانه حذف شد؛ فایل اصلی دست‌نخورده باقی ماند."
+        lifecycleScope.launch {
+            libraryRepository.remove(entry.uri)
+            refreshLibrary()
+            if (selectedUri == entry.uri) {
+                selectedUri = null
+                selectedTitle = "هنوز فایلی انتخاب نشده است"
+                playbackStatus = "از کتابخانه حذف شد؛ فایل اصلی دست‌نخورده باقی ماند."
+            }
         }
         // Do not revoke permissions or delete the original document.
     }
@@ -267,6 +305,42 @@ class MainActivity : ComponentActivity() {
         return results.values.toList()
     }
 
+    private fun startProgressCheckpoint() {
+        if (progressJob?.isActive == true) return
+        progressJob = lifecycleScope.launch {
+            while (isPlaying) {
+                delay(5_000L)
+                saveCurrentProgress()
+            }
+        }
+    }
+
+    private fun saveCurrentProgress() {
+        val controller = mediaController ?: return
+        val uri = selectedUri ?: return
+        val position = controller.currentPosition.coerceAtLeast(0L)
+        val duration = controller.duration.takeIf { it > 0L }
+        lifecycleScope.launch {
+            libraryRepository.saveProgress(uri, position, duration)
+        }
+    }
+
+    private fun markCurrentItemCompleted() {
+        val controller = mediaController ?: return
+        val uri = selectedUri ?: return
+        if (completedUri == uri) return
+        val duration = controller.duration
+        val position = if (duration > 0L) duration else controller.currentPosition
+        if (duration <= 0L || !PlaybackCompletionRules.isCompleted(position, duration)) return
+        completedUri = uri
+        val title = selectedTitle
+        lifecycleScope.launch {
+            libraryRepository.markPlayed(uri, title, position, duration)
+            refreshLibrary()
+            refreshRecentHistory()
+        }
+    }
+
     private fun togglePlayback() {
         val controller = mediaController
         if (controller == null) {
@@ -294,12 +368,18 @@ class MainActivity : ComponentActivity() {
         controller.setPlaybackSpeed(next)
     }
 
+    override fun onStop() {
+        saveCurrentProgress()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        saveCurrentProgress()
+        progressJob?.cancel()
         mediaController?.removeListener(playerListener)
         controllerFuture?.let(MediaController::releaseFuture)
         mediaController = null
         controllerFuture = null
-        if (::libraryStore.isInitialized) libraryStore.close()
         super.onDestroy()
     }
 }
@@ -312,6 +392,7 @@ private fun LibraryAndPlayerScreen(
     status: String,
     playing: Boolean,
     speed: Float,
+    history: List<ListeningEventEntity>,
     onImportFiles: () -> Unit,
     onImportFolder: () -> Unit,
     onPlayEntry: (AudioLibraryEntry) -> Unit,
@@ -394,6 +475,17 @@ private fun LibraryAndPlayerScreen(
             }
             Button(onClick = onSpeed, modifier = Modifier.padding(top = 4.dp)) {
                 Text("سرعت پخش: %.1fx".format(speed))
+            }
+            if (history.isNotEmpty()) {
+                Text("تاریخچهٔ اخیر", modifier = Modifier.padding(top = 6.dp), style = MaterialTheme.typography.titleSmall)
+                history.take(3).forEach { event ->
+                    Text(
+                        text = "${event.title} · ${if (event.eventType == "completed") "کامل‌شده" else "شروع‌شده"}",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Start
+                    )
+                }
             }
         }
     }
