@@ -9,6 +9,7 @@ YasinCast is a Persian-first native Android podcast and audio library app. The f
 - [Playback implementation and verification gaps](docs/player.md)
 - [Local audio library and SAF import](docs/library.md)
 - [Playback progress and listening history](docs/history.md)
+- [Physical-device acceptance checklist](docs/device-acceptance.md)
 - [Issue #1 — architecture](https://github.com/yusi20006-max/YasinCast/issues/1)
 - [Issue #2 — Android build foundation](https://github.com/yusi20006-max/YasinCast/issues/2)
 
