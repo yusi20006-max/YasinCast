@@ -9,9 +9,13 @@
 - The player configures 15-second seek-back/seek-forward increments and supports playback speed from 0.8x through 2.0x via the initial UI's speed-cycle button.
 - The first UI provides a user-initiated `audio/*` document picker and sends the selected content URI to the service. It attempts to persist the read URI grant and tolerates providers that do not offer a persistable grant.
 
+## Library integration
+
+The current Activity now plays entries from the persistent local library. See [library implementation and limits](library.md) for multi-file/folder SAF import, URI grant handling, metadata, and recoverable missing-file behavior.
+
 ## Scope and known gaps
 
-- This is the first playback slice, not the complete library implementation. Issue #4 will own durable library import, item metadata, and handling unavailable URIs.
+- Playback remains a minimal slice. The local import/index is implemented under Issue #4, while queue management and richer playback controls are still deferred.
 - The UI is intentionally minimal. It does not yet include a seek bar, playlist/queue management, or a detailed error/retry surface.
 - The notification permission is declared, but the Activity does not yet request it at runtime. Android may apply notification visibility rules based on the user's permission and OS version.
 - The service/session and manifest are compile-tested by CI only until physical-device testing is performed. Notification, lock-screen, Bluetooth/headphone, audio-focus interruptions, screen-off playback, and sample-format compatibility must be verified on the target phone under Issue #7.
