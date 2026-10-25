@@ -229,6 +229,61 @@ class MainActivity : ComponentActivity() {
         recentHistory.addAll(libraryRepository.recentHistory(5))
     }
 
+    private suspend fun refreshBookmarks() {
+        bookmarks.clear()
+        bookmarks.addAll(bookmarkStore.all())
+    }
+
+    private fun addBookmark(note: String) {
+        val uri = selectedUri
+        if (uri == null) {
+            playbackStatus = "ابتدا یک فایل را پخش یا انتخاب کنید."
+            return
+        }
+        bookmarkStore.add(uri, selectedTitle, mediaController?.currentPosition ?: currentPositionMs, note)
+        lifecycleScope.launch { refreshBookmarks() }
+        playbackStatus = "نشانک ذخیره شد."
+    }
+
+    private fun deleteBookmark(id: Long) {
+        bookmarkStore.remove(id)
+        lifecycleScope.launch { refreshBookmarks() }
+    }
+
+    private fun selectBookmark(bookmark: AudioBookmark) {
+        lifecycleScope.launch {
+            if (mediaController == null) {
+                playbackStatus = "سرویس پخش هنوز آماده نیست."
+                return@launch
+            }
+            if (selectedUri != bookmark.uri) {
+                val entry = library.firstOrNull { it.uri == bookmark.uri }
+                if (entry == null) {
+                    playbackStatus = "فایل نشانک در کتابخانه نیست؛ آن را دوباره وارد کنید."
+                    return@launch
+                }
+                playEntryInternal(entry)
+                delay(600L)
+            }
+            mediaController?.seekTo(bookmark.positionMs)
+            updatePlaybackPosition()
+            playbackStatus = "رفتن به نشانک: " + bookmark.title
+        }
+    }
+
+    private fun setSleepTimer(minutes: Int) {
+        val intent = Intent(this, PlaybackService::class.java)
+            .setAction(PlaybackService.ACTION_SET_SLEEP_TIMER)
+            .putExtra(PlaybackService.EXTRA_MINUTES, minutes)
+        startService(intent)
+        sleepTimerStatus = "توقف پخش پس از " + minutes + " دقیقه"
+    }
+
+    private fun cancelSleepTimer() {
+        startService(Intent(this, PlaybackService::class.java).setAction(PlaybackService.ACTION_CANCEL_SLEEP_TIMER))
+        sleepTimerStatus = "تایمر خواب لغو شد."
+    }
+
     private fun persistReadGrant(uri: Uri) {
         try {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
