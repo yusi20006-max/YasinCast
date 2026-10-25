@@ -523,6 +523,8 @@ private fun LibraryAndPlayerScreen(
     history: List<ListeningEventEntity>,
     playedUris: Map<String, Boolean>,
     progressLabels: Map<String, String>,
+    bookmarks: List<AudioBookmark>,
+    sleepTimerStatus: String,
     onImportFiles: () -> Unit,
     onImportFolder: () -> Unit,
     onPlayEntry: (AudioLibraryEntry) -> Unit,
@@ -532,9 +534,20 @@ private fun LibraryAndPlayerScreen(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onSpeed: () -> Unit,
-    onSeekTo: (Long) -> Unit
+    onSeekTo: (Long) -> Unit,
+    onAddBookmark: (String) -> Unit,
+    onDeleteBookmark: (Long) -> Unit,
+    onSelectBookmark: (AudioBookmark) -> Unit,
+    onSetSleepTimer: (Int) -> Unit,
+    onCancelSleepTimer: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf("library") }
+    var searchQuery by remember { mutableStateOf("") }
+    var bookmarkNote by remember { mutableStateOf("") }
+    val filteredEntries = entries.filter { entry ->
+        val query = normalizeSearchText(searchQuery)
+        query.isBlank() || normalizeSearchText(entry.title).contains(query) || normalizeSearchText(entry.uri.substringAfterLast('/')).contains(query)
+    }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
