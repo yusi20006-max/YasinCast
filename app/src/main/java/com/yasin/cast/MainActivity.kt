@@ -731,6 +731,19 @@ private fun LibraryAndPlayerScreen(
                         Text("سرعت فعلی: %.1fx".format(speed), style = MaterialTheme.typography.bodyLarge)
                         Text("با هر بار انتخاب، سرعت بین ۰٫۸ تا ۲ برابر تغییر می‌کند.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Button(onClick = onSpeed, modifier = Modifier.fillMaxWidth()) { Text("تغییر سرعت پخش") }
+                        Text("تایمر خواب", style = MaterialTheme.typography.titleMedium)
+                        Text(sleepTimerStatus, style = MaterialTheme.typography.bodyMedium)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(15, 30, 45).forEach { minutes ->
+                                Button(onClick = { onSetSleepTimer(minutes) }, modifier = Modifier.weight(1f)) { Text(minutes.toString() + " دقیقه") }
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(60, 90).forEach { minutes ->
+                                Button(onClick = { onSetSleepTimer(minutes) }, modifier = Modifier.weight(1f)) { Text(minutes.toString() + " دقیقه") }
+                            }
+                            Button(onClick = onCancelSleepTimer, modifier = Modifier.weight(1f)) { Text("لغو تایمر") }
+                        }
                         Text("وضعیت پخش: $status", style = MaterialTheme.typography.bodyMedium)
                         Text("YasinCast نسخهٔ ۰٫۱ · طراحی‌شده برای استفادهٔ آفلاین", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (history.isNotEmpty()) {
