@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Slider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +54,9 @@ class MainActivity : ComponentActivity() {
     private val playedUris = mutableStateMapOf<String, Boolean>()
     private val progressLabels = mutableStateMapOf<String, String>()
     private val recentHistory = mutableStateListOf<ListeningEventEntity>()
+    private val bookmarks = mutableStateListOf<AudioBookmark>()
+    private val bookmarkStore by lazy { BookmarkStore(this) }
+    private var sleepTimerStatus by mutableStateOf("تایمر خواب خاموش است")
     private var progressJob: Job? = null
     private var completedUri: String? = null
     private var selectedUri by mutableStateOf<String?>(null)
