@@ -17,7 +17,7 @@ Issue #4 stored library entries in `yasin_cast_library.db` via SQLiteOpenHelper.
 
 - While playing, the current position is checkpointed every 5 seconds; position is also saved when playback pauses and when the Activity stops. Writes are asynchronous on the I/O dispatcher.
 - Starting an item restores its saved position, unless the saved position is at or beyond the known duration, in which case playback starts from zero.
-- An item is marked **played/completed** when playback reaches the end and duration is at least 30 seconds. The shared completion rule also defines 90% of duration as the threshold for future progress-based completion checks.
+- An item is marked **played/completed** when it reaches at least 90% of its known duration, provided the duration is at least 30 seconds. The same rule is checked during five-second progress checkpoints and at end-of-playback.
 - The library exposes saved progress and played status. **From start** resets the played flag and saved position, then plays the item again.
 - Recent history shows the latest local start/completion events. No account, network sync, analytics, or cloud storage is involved.
 
