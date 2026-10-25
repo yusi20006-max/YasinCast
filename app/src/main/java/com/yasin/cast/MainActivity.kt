@@ -771,7 +771,7 @@ private fun formatPlaybackTime(milliseconds: Long): String {
     return if (hours > 0L) "%d:%02d:%02d".format(hours, minutes, seconds) else "%d:%02d".format(minutes, seconds)
 }
 
-private fun normalizeSearchText(value: String): String =
+internal fun normalizeSearchText(value: String): String =
     value.lowercase()
         .replace('ي', 'ی')
         .replace('ك', 'ک')
