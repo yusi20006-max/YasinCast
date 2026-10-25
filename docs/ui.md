@@ -5,14 +5,15 @@
 
 ## Visual system
 
-The refreshed interface uses a dark navy base, lapis-blue primary actions, cool cyan highlights, and glass-like panels with subtle blue borders. The player screen has a decorative audio hero panel; it does not imply embedded cover art or change playback metadata. Navigation uses a clear selected state. All labels remain Persian-first and the screen stays RTL.
+The refreshed interface uses a dark navy base, lapis-blue primary actions, cool cyan highlights, and glass-like panels with subtle blue borders. The player displays embedded cover art and audio tags when available, with a lapis-themed fallback when artwork is absent. Navigation uses a clear selected state. All labels remain Persian-first and the screen stays RTL.
 
 The palette is defined in UiTheme.kt and is intentionally local/offline: no remote fonts, artwork, or network resources are required.
 
 ## Screens
 
 - **کتابخانه:** import audio files or a folder using Android's Storage Access Framework; browse saved items; resume, restart, or remove an item from the app's list without deleting the source.
-- **در حال پخش:** title, duration when known, seek slider, elapsed and remaining time, play/pause, skip backward/forward 15 seconds, and playback-speed control.
+- **در حال پخش:** embedded cover art, title, artist/author, album, duration when known, seek slider, elapsed and remaining time, play/pause, skip backward/forward 15 seconds, and playback-speed control.
+- Embedded title, artist, album, and cover are read locally from the selected file. The same title/artist/album and artwork bytes are attached to the Media3 media item for Android system media surfaces when supported. Missing or unreadable tags fall back to the file name; missing artwork uses the built-in lapis placeholder.
 - **تنظیمات:** current playback speed, a speed-change action, current status, app/offline note, and recent listening events.
 
 ## RTL and accessibility
@@ -28,4 +29,4 @@ The Media3 MediaController remains the source of truth for play/pause, playback 
 - Automated verification is provided by the Android GitHub Actions workflow (assembleDebug and testDebugUnitTest).
 - The current UI is a focused MVP; settings are intentionally limited and do not introduce accounts or online features. The lapis/glass visual refresh is a presentation-only layer over the existing playback and persistence behavior.
 - Dynamic font scaling, TalkBack traversal, small-screen/landscape behavior, and real-device Persian rendering must still be checked on the target Android phone under Issue #7.
-- Metadata such as duration may be unavailable for unsupported, inaccessible, or not-yet-prepared files; the player shows a fallback and disables seeking until duration is known.
+- Metadata and cover art may be unavailable for unsupported, inaccessible, or untagged files; the player shows filename/placeholder fallbacks and playback remains available.
