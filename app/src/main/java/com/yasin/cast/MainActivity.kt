@@ -15,6 +15,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -756,7 +757,7 @@ private fun LibraryAndPlayerScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(28.dp))
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(28.dp))
                                 .background(Brush.linearGradient(listOf(Color(0xFF1D4D86), Color(0xFF14284D), Color(0xFF236A92)))),
                             contentAlignment = Alignment.Center
                         ) {
