@@ -1,6 +1,9 @@
 package com.yasin.cast
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
@@ -8,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +44,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -73,6 +80,9 @@ class MainActivity : ComponentActivity() {
     private var completedUri: String? = null
     private var selectedUri by mutableStateOf<String?>(null)
     private var selectedTitle by mutableStateOf("هنوز فایلی انتخاب نشده است")
+    private var selectedArtist by mutableStateOf<String?>(null)
+    private var selectedAlbum by mutableStateOf<String?>(null)
+    private var coverBitmap by mutableStateOf<Bitmap?>(null)
     private var isPlaying by mutableStateOf(false)
     private var playbackStatus by mutableStateOf("برای افزودن فایل، از انتخاب‌گر اندروید استفاده کنید.")
     private var playbackSpeed by mutableStateOf(1.0f)
@@ -197,6 +207,9 @@ class MainActivity : ComponentActivity() {
                         entries = library,
                         selectedUri = selectedUri,
                         title = selectedTitle,
+                        artist = selectedArtist,
+                        album = selectedAlbum,
+                        coverBitmap = coverBitmap,
                         status = playbackStatus,
                         playing = isPlaying,
                         speed = playbackSpeed,
@@ -341,10 +354,46 @@ class MainActivity : ComponentActivity() {
         val uriString = uri.toString()
         val state = libraryRepository.playbackState(uriString)
         selectedUri = uriString
-        selectedTitle = state?.title ?: library.firstOrNull { it.uri == uriString }?.title
+        val fallbackTitle = state?.title ?: library.firstOrNull { it.uri == uriString }?.title
             ?: queryAudioEntry(this, uri).title
+        val metadata = runCatching {
+            MediaMetadataRetriever().use { retriever ->
+                retriever.setDataSource(this, uri)
+                val embeddedTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                    ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+                val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                AudioTrackMetadata(
+                    title = embeddedTitle?.takeIf { it.isNotBlank() } ?: fallbackTitle.substringBeforeLast('.', fallbackTitle),
+                    artist = artist?.takeIf { it.isNotBlank() },
+                    album = album?.takeIf { it.isNotBlank() },
+                    artwork = retriever.embeddedPicture
+                )
+            }
+        }.getOrElse {
+            AudioTrackMetadata(
+                title = fallbackTitle.substringBeforeLast('.', fallbackTitle),
+                artist = null,
+                album = null,
+                artwork = null
+            )
+        }
+        selectedTitle = metadata.title
+        selectedArtist = metadata.artist
+        selectedAlbum = metadata.album
+        coverBitmap = metadata.artwork?.let { bytes ->
+            runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+        }
         completedUri = null
-        controller.setMediaItem(MediaItem.fromUri(uri))
+        val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
+            .setTitle(metadata.title)
+            .setArtist(metadata.artist)
+            .setAlbumTitle(metadata.album)
+            .apply {
+                metadata.artwork?.let { setArtworkData(it, androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER) }
+            }
+            .build()
+        controller.setMediaItem(MediaItem.Builder().setUri(uri).setMediaMetadata(mediaMetadata).build())
         controller.prepare()
         val resumeAt = PlaybackCompletionRules.resumePosition(state?.lastPositionMs ?: 0L, state?.durationMs)
         if (resumeAt > 0L) controller.seekTo(resumeAt)
@@ -531,6 +580,9 @@ private fun LibraryAndPlayerScreen(
     entries: List<AudioLibraryEntry>,
     selectedUri: String?,
     title: String,
+    artist: String?,
+    album: String?,
+    coverBitmap: Bitmap?,
     status: String,
     playing: Boolean,
     speed: Float,
@@ -694,18 +746,27 @@ private fun LibraryAndPlayerScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxWidth().height(172.dp).background(
-                                Brush.linearGradient(listOf(Color(0xFF1D4D86), Color(0xFF14284D), Color(0xFF236A92))),
-                                RoundedCornerShape(28.dp)
-                            ),
+                            modifier = Modifier.fillMaxWidth().height(230.dp).clip(RoundedCornerShape(28.dp))
+                                .background(Brush.linearGradient(listOf(Color(0xFF1D4D86), Color(0xFF14284D), Color(0xFF236A92)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("♫", fontSize = 64.sp, color = Color(0xFFBCEBFF), fontWeight = FontWeight.Light)
-                                Text("پخش آفلاین", style = MaterialTheme.typography.labelMedium, color = Color(0xFFDDEEFF))
+                            if (coverBitmap != null) {
+                                Image(
+                                    bitmap = coverBitmap.asImageBitmap(),
+                                    contentDescription = "کاور فایل صوتی",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp))
+                                )
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("♫", fontSize = 64.sp, color = Color(0xFFBCEBFF), fontWeight = FontWeight.Light)
+                                    Text("بدون کاور", style = MaterialTheme.typography.labelMedium, color = Color(0xFFDDEEFF))
+                                }
                             }
                         }
                         Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, maxLines = 3, modifier = Modifier.padding(top = 18.dp))
+                        artist?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 4.dp)) }
+                        album?.let { Text("آلبوم: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 2.dp)) }
                         Text(
                             if (durationMs > 0L) formatPlaybackTime(durationMs) else "مدت فایل نامشخص است",
                             style = MaterialTheme.typography.bodyMedium,
