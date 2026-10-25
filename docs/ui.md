@@ -1,6 +1,13 @@
 # Persian RTL interface
 
-**Tracking issue:** [#6 — Persian RTL library and player screens](https://github.com/yusi20006-max/YasinCast/issues/6)
+**Original implementation:** [#6 — Persian RTL library and player screens](https://github.com/yusi20006-max/YasinCast/issues/6)  
+**Visual refresh:** [#17 — lapis glass theme](https://github.com/yusi20006-max/YasinCast/issues/17)
+
+## Visual system
+
+The refreshed interface uses a dark navy base, lapis-blue primary actions, cool cyan highlights, and glass-like panels with subtle blue borders. The player screen has a decorative audio hero panel; it does not imply embedded cover art or change playback metadata. Navigation uses a clear selected state. All labels remain Persian-first and the screen stays RTL.
+
+The palette is defined in UiTheme.kt and is intentionally local/offline: no remote fonts, artwork, or network resources are required.
 
 ## Screens
 
@@ -19,6 +26,6 @@ The Media3 MediaController remains the source of truth for play/pause, playback 
 ## Verification status and limitations
 
 - Automated verification is provided by the Android GitHub Actions workflow (assembleDebug and testDebugUnitTest).
-- The current UI is a focused MVP; settings are intentionally limited and do not introduce accounts or online features.
+- The current UI is a focused MVP; settings are intentionally limited and do not introduce accounts or online features. The lapis/glass visual refresh is a presentation-only layer over the existing playback and persistence behavior.
 - Dynamic font scaling, TalkBack traversal, small-screen/landscape behavior, and real-device Persian rendering must still be checked on the target Android phone under Issue #7.
 - Metadata such as duration may be unavailable for unsupported, inaccessible, or not-yet-prepared files; the player shows a fallback and disables seeking until duration is known.
