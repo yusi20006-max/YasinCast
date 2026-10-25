@@ -24,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,8 @@ class MainActivity : ComponentActivity() {
     private var mediaController: MediaController? = null
     private lateinit var libraryRepository: AudioLibraryRepository
     private val library = mutableStateListOf<AudioLibraryEntry>()
+    private val playedUris = mutableStateMapOf<String, Boolean>()
+    private val progressLabels = mutableStateMapOf<String, String>()
     private val recentHistory = mutableStateListOf<ListeningEventEntity>()
     private var progressJob: Job? = null
     private var completedUri: String? = null
@@ -114,7 +117,10 @@ class MainActivity : ComponentActivity() {
             playbackStatus = when (playbackState) {
                 Player.STATE_BUFFERING -> "در حال آماده‌سازی…"
                 Player.STATE_READY -> if (mediaController?.isPlaying == true) "در حال پخش" else "آمادهٔ پخش"
-                Player.STATE_ENDED -> "پخش به پایان رسید"
+                Player.STATE_ENDED -> {
+                    markCurrentItemCompleted()
+                    "پخش به پایان رسید"
+                }
                 else -> "آماده"
             }
         }
@@ -167,9 +173,12 @@ class MainActivity : ComponentActivity() {
                         playing = isPlaying,
                         speed = playbackSpeed,
                         history = recentHistory,
+                        playedUris = playedUris,
+                        progressLabels = progressLabels,
                         onImportFiles = { openAudio.launch(arrayOf("audio/*")) },
                         onImportFolder = { openFolder.launch(null) },
                         onPlayEntry = { playEntry(it) },
+                        onReplayFromStart = { replayFromStart(it) },
                         onRemoveEntry = { removeEntry(it) },
                         onPlayPause = { togglePlayback() },
                         onBack = { seekBy(-15_000L) },
@@ -182,8 +191,15 @@ class MainActivity : ComponentActivity() {
     }
 
     private suspend fun refreshLibrary() {
+        val items = libraryRepository.all()
         library.clear()
-        library.addAll(libraryRepository.all().map { it.toLibraryEntry() })
+        library.addAll(items.map { it.toLibraryEntry() })
+        playedUris.clear()
+        progressLabels.clear()
+        items.forEach { item ->
+            playedUris[item.uri] = item.played
+            progressLabels[item.uri] = if (item.lastPositionMs > 0L) "ادامه از ${item.lastPositionMs / 1000} ثانیه" else "شروع‌نشده"
+        }
     }
 
     private suspend fun refreshRecentHistory() {
@@ -243,6 +259,14 @@ class MainActivity : ComponentActivity() {
         libraryRepository.recordStarted(uriString, selectedTitle, resumeAt)
         refreshRecentHistory()
         playbackStatus = if (resumeAt > 0L) "ادامه از ${resumeAt / 1000} ثانیه" else "در حال آماده‌سازی…"
+    }
+
+    private fun replayFromStart(entry: AudioLibraryEntry) {
+        lifecycleScope.launch {
+            libraryRepository.resetPlayback(entry.uri)
+            refreshLibrary()
+            playEntry(entry)
+        }
     }
 
     private fun removeEntry(entry: AudioLibraryEntry) {
@@ -393,9 +417,12 @@ private fun LibraryAndPlayerScreen(
     playing: Boolean,
     speed: Float,
     history: List<ListeningEventEntity>,
+    playedUris: Map<String, Boolean>,
+    progressLabels: Map<String, String>,
     onImportFiles: () -> Unit,
     onImportFolder: () -> Unit,
     onPlayEntry: (AudioLibraryEntry) -> Unit,
+    onReplayFromStart: (AudioLibraryEntry) -> Unit,
     onRemoveEntry: (AudioLibraryEntry) -> Unit,
     onPlayPause: () -> Unit,
     onBack: () -> Unit,
@@ -446,12 +473,17 @@ private fun LibraryAndPlayerScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
+                                text = if (playedUris[entry.uri] == true) "شنیده‌شده · ${progressLabels[entry.uri] ?: ""}" else (progressLabels[entry.uri] ?: "شروع‌نشده"),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
                                 text = listOfNotNull(entry.mimeType, AudioLibraryRules.formatSize(entry.sizeBytes))
                                     .joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onPlayEntry(entry) }) { Text("پخش") }
+                                Button(onClick = { onPlayEntry(entry) }) { Text("ادامه/پخش") }
+                                Button(onClick = { onReplayFromStart(entry) }) { Text("از اول") }
                                 Button(onClick = { onRemoveEntry(entry) }) { Text("حذف از فهرست") }
                             }
                         }
