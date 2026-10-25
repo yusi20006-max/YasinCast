@@ -7,6 +7,7 @@ YasinCast is a Persian-first native Android podcast and audio library app. The f
 - [Architecture](docs/architecture.md)
 - [Phased roadmap](docs/roadmap.md)
 - [Playback implementation and verification gaps](docs/player.md)
+- [Local audio library and SAF import](docs/library.md)
 - [Issue #1 — architecture](https://github.com/yusi20006-max/YasinCast/issues/1)
 - [Issue #2 — Android build foundation](https://github.com/yusi20006-max/YasinCast/issues/2)
 
@@ -40,4 +41,4 @@ GitHub Actions builds the debug APK and runs unit tests on pushes and pull reque
 
 ## Current status
 
-The app now includes an initial Media3 playback service and a minimal Persian RTL player screen. A user can choose a local audio document, play/pause, seek backward/forward by 15 seconds, and cycle playback speed from 0.8x to 2.0x. MediaSession supplies Android system media controls. See [playback notes](docs/player.md) for scope and verification gaps. Durable library management, playback progress/history, and bookmarks remain tracked by separate issues. Physical-device behavior has not yet been verified.
+The app includes a Media3 playback service and a Persian RTL local audio library. Users can import multiple audio documents or select a folder through Android's Storage Access Framework, browse saved entries, play a selected item, remove an entry without deleting its source, seek by 15 seconds, and cycle speed from 0.8x to 2.0x. The URI index is stored locally in SQLite and persistable read grants are attempted where supported. See [library notes](docs/library.md) and [playback notes](docs/player.md). Playback progress/history and bookmarks remain tracked separately. Physical-device behavior has not yet been verified.
