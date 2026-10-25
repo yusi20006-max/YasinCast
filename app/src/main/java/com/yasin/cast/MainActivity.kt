@@ -342,10 +342,15 @@ class MainActivity : ComponentActivity() {
     private fun startProgressCheckpoint() {
         if (progressJob?.isActive == true) return
         progressJob = lifecycleScope.launch {
+            var elapsedSinceSaveMs = 0L
             while (isPlaying) {
                 delay(500L)
                 updatePlaybackPosition()
-                if (System.currentTimeMillis() % 5_000L < 550L) saveCurrentProgress()
+                elapsedSinceSaveMs += 500L
+                if (elapsedSinceSaveMs >= 5_000L) {
+                    saveCurrentProgress()
+                    elapsedSinceSaveMs = 0L
+                }
             }
         }
     }
