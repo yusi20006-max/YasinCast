@@ -4,16 +4,39 @@ YasinCast is a Persian-first native Android podcast and audio library app. The f
 
 ## Project documentation
 
-- [Architecture and technical decisions](docs/architecture.md)
-- [Phased roadmap and exit gates](docs/roadmap.md)
-- [Issue #1: architecture and roadmap](https://github.com/yusi20006-max/YasinCast/issues/1)
+- [Architecture](docs/architecture.md)
+- [Phased roadmap](docs/roadmap.md)
+- [Issue #1 — architecture](https://github.com/yusi20006-max/YasinCast/issues/1)
+- [Issue #2 — Android build foundation](https://github.com/yusi20006-max/YasinCast/issues/2)
 
-## Current scope
+## Android project
 
-The MVP targets Kotlin, Jetpack Compose, AndroidX Media3, Storage Access Framework (SAF), Room, and DataStore. Dependency versions will be selected after inspecting the available Android/Gradle toolchain; they are not pinned before that inspection.
+- Application ID: `com.yasin.cast`
+- Initial version: `0.1.0`
+- Minimum SDK: Android 8.0 (API 26)
+- Compile/target SDK: API 36
+- JDK: 17
+- Android Gradle Plugin: 8.13.0
+- Kotlin: 2.2.20
+- Gradle distribution: 8.13
+- UI: Jetpack Compose + Material 3
 
-The offline MVP comes first. Online hosting, accounts, RSS publishing, and synchronization are deferred until the offline application passes physical-device verification.
+These versions are pinned in the project files. They have not yet been verified on the owner's physical phone or local Termux environment.
 
-## Delivery status
+## Build
 
-Architecture documentation is under review. No Android app implementation or physical-device test is claimed complete yet.
+Install JDK 17, Android SDK platform/build-tools for API 36, and Gradle 8.13. Then run from the repository root:
+
+```sh
+gradle --no-daemon assembleDebug testDebugUnitTest
+```
+
+The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+
+GitHub Actions builds the debug APK and runs unit tests on pushes and pull requests. It uploads the APK as a 14-day artifact.
+
+**Wrapper limitation:** `gradle/wrapper/gradle-wrapper.properties` pins Gradle 8.13, but the official wrapper launcher scripts and JAR are not yet committed. The repository-writing connector supports UTF-8 text files only, so the wrapper JAR cannot be safely added through this route. Until the official wrapper is generated and committed, use an installed Gradle 8.13 as shown above; CI also installs that pinned version.
+
+## Current status
+
+The app is a minimal Persian RTL launch screen only. Audio playback, local library import, persistence, and other player features are tracked separately and are not implemented in this foundation. Physical-device install/launch is not yet verified.
