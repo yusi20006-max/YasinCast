@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Slider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,6 +26,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +60,8 @@ class MainActivity : ComponentActivity() {
     private var isPlaying by mutableStateOf(false)
     private var playbackStatus by mutableStateOf("برای افزودن فایل، از انتخاب‌گر اندروید استفاده کنید.")
     private var playbackSpeed by mutableStateOf(1.0f)
+    private var currentPositionMs by mutableStateOf(0L)
+    private var durationMs by mutableStateOf(0L)
     private var pendingUri: Uri? = null
 
     private val openAudio = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -101,6 +106,7 @@ class MainActivity : ComponentActivity() {
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(playing: Boolean) {
             isPlaying = playing
+            updatePlaybackPosition()
             if (playing) startProgressCheckpoint() else saveCurrentProgress()
             playbackStatus = when {
                 playing -> "در حال پخش"
@@ -114,6 +120,7 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            updatePlaybackPosition()
             playbackStatus = when (playbackState) {
                 Player.STATE_BUFFERING -> "در حال آماده‌سازی…"
                 Player.STATE_READY -> if (mediaController?.isPlaying == true) "در حال پخش" else "آمادهٔ پخش"
@@ -172,6 +179,8 @@ class MainActivity : ComponentActivity() {
                         status = playbackStatus,
                         playing = isPlaying,
                         speed = playbackSpeed,
+                        positionMs = currentPositionMs,
+                        durationMs = durationMs,
                         history = recentHistory,
                         playedUris = playedUris,
                         progressLabels = progressLabels,
@@ -183,7 +192,8 @@ class MainActivity : ComponentActivity() {
                         onPlayPause = { togglePlayback() },
                         onBack = { seekBy(-15_000L) },
                         onForward = { seekBy(15_000L) },
-                        onSpeed = { changeSpeed() }
+                        onSpeed = { changeSpeed() },
+                        onSeekTo = { seekTo(it) }
                     )
                 }
             }
@@ -333,10 +343,26 @@ class MainActivity : ComponentActivity() {
         if (progressJob?.isActive == true) return
         progressJob = lifecycleScope.launch {
             while (isPlaying) {
-                delay(5_000L)
-                saveCurrentProgress()
+                delay(500L)
+                updatePlaybackPosition()
+                if (System.currentTimeMillis() % 5_000L < 550L) saveCurrentProgress()
             }
         }
+    }
+
+    private fun updatePlaybackPosition() {
+        val controller = mediaController ?: return
+        currentPositionMs = controller.currentPosition.coerceAtLeast(0L)
+        durationMs = controller.duration.takeIf { it > 0L } ?: 0L
+        if (controller.playbackParameters.speed != playbackSpeed) playbackSpeed = controller.playbackParameters.speed
+    }
+
+    private fun seekTo(positionMs: Long) {
+        val controller = mediaController ?: return
+        val target = positionMs.coerceAtLeast(0L).let { if (controller.duration > 0L) it.coerceAtMost(controller.duration) else it }
+        controller.seekTo(target)
+        currentPositionMs = target
+        saveCurrentProgress()
     }
 
     private fun saveCurrentProgress() {
@@ -420,6 +446,8 @@ private fun LibraryAndPlayerScreen(
     status: String,
     playing: Boolean,
     speed: Float,
+    positionMs: Long,
+    durationMs: Long,
     history: List<ListeningEventEntity>,
     playedUris: Map<String, Boolean>,
     progressLabels: Map<String, String>,
@@ -431,8 +459,10 @@ private fun LibraryAndPlayerScreen(
     onPlayPause: () -> Unit,
     onBack: () -> Unit,
     onForward: () -> Unit,
-    onSpeed: () -> Unit
+    onSpeed: () -> Unit,
+    onSeekTo: (Long) -> Unit
 ) {
+    var selectedTab by remember { mutableStateOf("library") }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -440,89 +470,167 @@ private fun LibraryAndPlayerScreen(
         ) {
             Text(
                 text = "یاسین‌کست",
-                style = MaterialTheme.typography.headlineLarge,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = status,
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                text = "کتابخانه و پخش‌کنندهٔ صوتی آفلاین",
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 12.dp)
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = onImportFiles) { Text("افزودن فایل") }
-                Button(onClick = onImportFolder) { Text("افزودن پوشه") }
+                Button(onClick = { selectedTab = "library" }, modifier = Modifier.weight(1f), enabled = selectedTab != "library") { Text("کتابخانه") }
+                Button(onClick = { selectedTab = "player" }, modifier = Modifier.weight(1f), enabled = selectedTab != "player") { Text("در حال پخش") }
+                Button(onClick = { selectedTab = "settings" }, modifier = Modifier.weight(1f), enabled = selectedTab != "settings") { Text("تنظیمات") }
             }
-            if (entries.isEmpty()) {
-                Text(
-                    text = "کتابخانه خالی است. فایل صوتی یا پوشه‌ای را انتخاب کنید تا اینجا نمایش داده شود.",
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(entries, key = { it.uri }) { entry ->
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                    Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                    if (selectedUri != null) {
+                        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = onPlayPause) { Text(if (playing) "مکث" else "پخش") }
+                            Text("سرعت %.1fx".format(speed), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+            when (selectedTab) {
+                "library" -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(onClick = onImportFiles, modifier = Modifier.weight(1f)) { Text("افزودن فایل") }
+                        Button(onClick = onImportFolder, modifier = Modifier.weight(1f)) { Text("افزودن پوشه") }
+                    }
+                    if (entries.isEmpty()) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp, horizontal = 4.dp)
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Text("کتابخانه خالی است", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
                             Text(
-                                text = if (entry.uri == selectedUri) "▶ ${entry.title}" else entry.title,
-                                style = MaterialTheme.typography.titleMedium
+                                "برای شروع، فایل صوتی یا پوشه‌ای را از حافظهٔ گوشی انتخاب کنید. فایل اصلی حذف یا جابه‌جا نمی‌شود.",
+                                modifier = Modifier.padding(top = 8.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = if (playedUris[entry.uri] == true) "شنیده‌شده · ${progressLabels[entry.uri] ?: ""}" else (progressLabels[entry.uri] ?: "شروع‌نشده"),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                text = listOfNotNull(entry.mimeType, AudioLibraryRules.formatSize(entry.sizeBytes))
-                                    .joinToString(" · "),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onPlayEntry(entry) }) { Text("ادامه/پخش") }
-                                Button(onClick = { onReplayFromStart(entry) }) { Text("از اول") }
-                                Button(onClick = { onRemoveEntry(entry) }) { Text("حذف از فهرست") }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(entries, key = { it.uri }) { entry ->
+                                Card(modifier = Modifier.fillMaxWidth()) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                                        Text(
+                                            text = if (entry.uri == selectedUri) "▶  ${entry.title}" else entry.title,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 2
+                                        )
+                                        Text(
+                                            text = if (playedUris[entry.uri] == true) "شنیده‌شده" else (progressLabels[entry.uri] ?: "شروع‌نشده"),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 3.dp)
+                                        )
+                                        Text(
+                                            text = listOfNotNull(entry.mimeType, AudioLibraryRules.formatSize(entry.sizeBytes)).joinToString(" · ").ifBlank { "اطلاعات فایل موجود نیست" },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
+                                            Button(onClick = { onPlayEntry(entry) }, modifier = Modifier.weight(1f)) { Text("پخش / ادامه") }
+                                            Button(onClick = { onReplayFromStart(entry) }, modifier = Modifier.weight(1f)) { Text("از اول") }
+                                        }
+                                        Button(onClick = { onRemoveEntry(entry) }, modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) { Text("حذف از فهرست") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                "player" -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, maxLines = 3)
+                        Text(
+                            if (durationMs > 0L) formatPlaybackTime(durationMs) else "مدت فایل نامشخص است",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                        Slider(
+                            value = if (durationMs > 0L) positionMs.coerceIn(0L, durationMs).toFloat() else 0f,
+                            onValueChange = { if (durationMs > 0L) onSeekTo(it.toLong()) },
+                            valueRange = 0f..(durationMs.coerceAtLeast(1L).toFloat()),
+                            enabled = selectedUri != null && durationMs > 0L,
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.bodySmall)
+                            Text(if (durationMs > 0L) formatPlaybackTime((durationMs - positionMs).coerceAtLeast(0L)) + " باقی‌مانده" else "—", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(onClick = onBack, enabled = selectedUri != null) { Text("۱۵− ثانیه") }
+                            Button(onClick = onPlayPause, enabled = selectedUri != null || entries.isNotEmpty()) { Text(if (playing) "مکث" else "پخش") }
+                            Button(onClick = onForward, enabled = selectedUri != null) { Text("۱۵+ ثانیه") }
+                        }
+                        Button(onClick = onSpeed, modifier = Modifier.padding(top = 12.dp)) { Text("تغییر سرعت · %.1fx".format(speed)) }
+                        if (selectedUri == null) {
+                            Text("برای پخش، یک فایل را از بخش کتابخانه انتخاب کنید.", modifier = Modifier.padding(top = 16.dp), textAlign = TextAlign.Center)
+                        }
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("تنظیمات پخش", style = MaterialTheme.typography.headlineSmall)
+                        Text("سرعت فعلی: %.1fx".format(speed), style = MaterialTheme.typography.bodyLarge)
+                        Text("با هر بار انتخاب، سرعت بین ۰٫۸ تا ۲ برابر تغییر می‌کند.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Button(onClick = onSpeed, modifier = Modifier.fillMaxWidth()) { Text("تغییر سرعت پخش") }
+                        Text("وضعیت پخش: $status", style = MaterialTheme.typography.bodyMedium)
+                        Text("YasinCast نسخهٔ ۰٫۱ · طراحی‌شده برای استفادهٔ آفلاین", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (history.isNotEmpty()) {
+                            Text("تاریخچهٔ اخیر", style = MaterialTheme.typography.titleMedium)
+                            history.take(8).forEach { event ->
+                                Text(
+                                    text = "${event.title} · ${if (event.eventType == "completed") "کامل‌شده" else "شروع‌شده"} · ${formatPlaybackTime(event.positionMs)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
+                                )
                             }
                         }
                     }
                 }
             }
-            Text(
-                text = title,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(onClick = onBack) { Text("۱۵ ثانیه عقب") }
-                Button(onClick = onPlayPause) { Text(if (playing) "توقف" else "پخش") }
-                Button(onClick = onForward) { Text("۱۵ ثانیه جلو") }
-            }
-            Button(onClick = onSpeed, modifier = Modifier.padding(top = 4.dp)) {
-                Text("سرعت پخش: %.1fx".format(speed))
-            }
-            if (history.isNotEmpty()) {
-                Text("تاریخچهٔ اخیر", modifier = Modifier.padding(top = 6.dp), style = MaterialTheme.typography.titleSmall)
-                history.take(3).forEach { event ->
-                    Text(
-                        text = "${event.title} · ${if (event.eventType == "completed") "کامل‌شده" else "شروع‌شده"}",
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Start
-                    )
-                }
-            }
         }
     }
+}
+
+private fun formatPlaybackTime(milliseconds: Long): String {
+    val totalSeconds = (milliseconds.coerceAtLeast(0L) / 1000L)
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) "%d:%02d:%02d".format(hours, minutes, seconds) else "%d:%02d".format(minutes, seconds)
 }
