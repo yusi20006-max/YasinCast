@@ -149,6 +149,7 @@ class MainActivity : ComponentActivity() {
             libraryRepository.initialize()
             refreshLibrary()
             refreshRecentHistory()
+            refreshBookmarks()
         }
 
         val token = SessionToken(this, android.content.ComponentName(this, PlaybackService::class.java))
@@ -188,6 +189,8 @@ class MainActivity : ComponentActivity() {
                         history = recentHistory,
                         playedUris = playedUris,
                         progressLabels = progressLabels,
+                        bookmarks = bookmarks,
+                        sleepTimerStatus = sleepTimerStatus,
                         onImportFiles = { openAudio.launch(arrayOf("audio/*")) },
                         onImportFolder = { openFolder.launch(null) },
                         onPlayEntry = { playEntry(it) },
@@ -197,7 +200,12 @@ class MainActivity : ComponentActivity() {
                         onBack = { seekBy(-15_000L) },
                         onForward = { seekBy(15_000L) },
                         onSpeed = { changeSpeed() },
-                        onSeekTo = { seekTo(it) }
+                        onSeekTo = { seekTo(it) },
+                        onAddBookmark = { addBookmark(it) },
+                        onDeleteBookmark = { deleteBookmark(it) },
+                        onSelectBookmark = { selectBookmark(it) },
+                        onSetSleepTimer = { setSleepTimer(it) },
+                        onCancelSleepTimer = { cancelSleepTimer() }
                     )
                 }
             }
