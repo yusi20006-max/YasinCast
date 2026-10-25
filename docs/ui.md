@@ -1,0 +1,24 @@
+# Persian RTL interface
+
+**Tracking issue:** [#6 — Persian RTL library and player screens](https://github.com/yusi20006-max/YasinCast/issues/6)
+
+## Screens
+
+- **کتابخانه:** import audio files or a folder using Android's Storage Access Framework; browse saved items; resume, restart, or remove an item from the app's list without deleting the source.
+- **در حال پخش:** title, duration when known, seek slider, elapsed and remaining time, play/pause, skip backward/forward 15 seconds, and playback-speed control.
+- **تنظیمات:** current playback speed, a speed-change action, current status, app/offline note, and recent listening events.
+
+## RTL and accessibility
+
+The Compose screen content explicitly uses right-to-left layout direction. Labels and status messages are Persian-first. Primary actions use Material 3 buttons, cards group related content, disabled controls indicate unavailable actions, and the seek slider is disabled until a selected item has a known duration. Missing metadata is shown as a fallback rather than treated as a fatal error.
+
+## State ownership
+
+The Media3 MediaController remains the source of truth for play/pause, playback position, duration, speed, and seeking. The UI sends actions to the activity/controller and receives observable state. The progress label is refreshed while playing; persistence continues through the Room-backed repository introduced in Issue #5.
+
+## Verification status and limitations
+
+- Automated verification is provided by the Android GitHub Actions workflow (assembleDebug and testDebugUnitTest).
+- The current UI is a focused MVP; settings are intentionally limited and do not introduce accounts or online features.
+- Dynamic font scaling, TalkBack traversal, small-screen/landscape behavior, and real-device Persian rendering must still be checked on the target Android phone under Issue #7.
+- Metadata such as duration may be unavailable for unsupported, inaccessible, or not-yet-prepared files; the player shows a fallback and disables seeking until duration is known.
