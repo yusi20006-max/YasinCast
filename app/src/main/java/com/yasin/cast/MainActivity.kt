@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.Slider
 import androidx.compose.material3.MaterialTheme
@@ -623,8 +624,19 @@ private fun LibraryAndPlayerScreen(
 ) {
     var selectedTab by remember { mutableStateOf("home") }
     var searchQuery by remember { mutableStateOf("") }
+    var libraryFilter by remember { mutableStateOf("all") }
     var bookmarkNote by remember { mutableStateOf("") }
     val filteredEntries = entries.filter { entry ->
+        val query = normalizeSearchText(searchQuery)
+        val matchesQuery = query.isBlank() || normalizeSearchText(entry.title).contains(query) || normalizeSearchText(entry.uri.substringAfterLast('/')).contains(query)
+        val isPlayed = playedUris[entry.uri] == true
+        matchesQuery && when (libraryFilter) {
+            "played" -> isPlayed
+            "unfinished" -> !isPlayed
+            else -> true
+        }
+    }
+    val filteredCollectionEntries = entries.filter { entry ->
         val query = normalizeSearchText(searchQuery)
         query.isBlank() || normalizeSearchText(entry.title).contains(query) || normalizeSearchText(entry.uri.substringAfterLast('/')).contains(query)
     }
@@ -737,15 +749,25 @@ private fun LibraryAndPlayerScreen(
                     Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 14.dp)) {
                         Text("مجموعهٔ صوت‌های من", style = MaterialTheme.typography.headlineSmall)
                         Text("فایل‌های محلی واردشده به یاسین‌کست؛ فایل اصلی در محل خودش باقی می‌ماند.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            label = { Text("جست‌وجو در این مجموعه") },
+                            placeholder = { Text("نام فایل صوتی") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        )
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { entries.firstOrNull()?.let(onPlayEntry); if (entries.isNotEmpty()) selectedTab = "player" }, modifier = Modifier.weight(1f), enabled = entries.isNotEmpty()) { Text("پخش مجموعه") }
                             Button(onClick = { selectedTab = "library" }, modifier = Modifier.weight(1f)) { Text("مدیریت فایل‌ها") }
                         }
                         if (entries.isEmpty()) {
                             Text("این مجموعه هنوز خالی است.", modifier = Modifier.padding(top = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else if (filteredCollectionEntries.isEmpty()) {
+                            Text("فایلی با این نام در مجموعه پیدا نشد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                         } else {
                             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(entries, key = { it.uri }) { entry ->
+                                items(filteredCollectionEntries, key = { it.uri }) { entry ->
                                     GlassCard(modifier = Modifier.fillMaxWidth()) {
                                         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                                             Text(entry.title.substringBeforeLast('.', entry.title), style = MaterialTheme.typography.titleMedium, maxLines = 2)
@@ -777,6 +799,19 @@ private fun LibraryAndPlayerScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("all" to "همه", "unfinished" to "ناتمام", "played" to "شنیده‌شده").forEach { (filter, label) ->
+                            FilterChip(
+                                selected = libraryFilter == filter,
+                                onClick = { libraryFilter = filter },
+                                label = { Text(label) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                     if (entries.isEmpty()) {
                         Column(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp),
@@ -793,7 +828,7 @@ private fun LibraryAndPlayerScreen(
                             )
                         }
                     } else if (filteredEntries.isEmpty()) {
-                        Text("نتیجه‌ای برای این جست‌وجو پیدا نشد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), textAlign = TextAlign.Center)
+                        Text(if (searchQuery.isNotBlank()) "نتیجه‌ای برای این جست‌وجو یا فیلتر پیدا نشد." else "فایلی در این دسته وجود ندارد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
