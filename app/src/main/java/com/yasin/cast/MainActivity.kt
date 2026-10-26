@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -620,7 +621,7 @@ private fun LibraryAndPlayerScreen(
     onSetSleepTimer: (Int) -> Unit,
     onCancelSleepTimer: () -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf("library") }
+    var selectedTab by remember { mutableStateOf("home") }
     var searchQuery by remember { mutableStateOf("") }
     var bookmarkNote by remember { mutableStateOf("") }
     val filteredEntries = entries.filter { entry ->
@@ -649,7 +650,7 @@ private fun LibraryAndPlayerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("library" to "کتابخانه", "player" to "پخش‌کننده", "settings" to "تنظیمات").forEach { (tab, label) ->
+                listOf("home" to "خانه", "library" to "کتابخانه", "settings" to "تنظیمات").forEach { (tab, label) ->
                     Surface(
                         modifier = Modifier.weight(1f).clickable { selectedTab = tab },
                         shape = RoundedCornerShape(18.dp),
@@ -669,7 +670,7 @@ private fun LibraryAndPlayerScreen(
                     }
                 }
             }
-            GlassCard(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+            GlassCard(modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { if (selectedUri != null) selectedTab = "player" }) {
                 Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (selectedUri != null) {
@@ -682,6 +683,84 @@ private fun LibraryAndPlayerScreen(
                 }
             }
             when (selectedTab) {
+                "home" -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(top = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text("دوباره به قصه‌ات برگرد", style = MaterialTheme.typography.headlineSmall, color = Color(0xFFF1F7FF))
+                        Text("صوت‌های خودت را یک‌جا نگه دار و هر وقت خواستی ادامه بده.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        GlassCard(modifier = Modifier.fillMaxWidth().clickable { selectedTab = "collection" }) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().aspectRatio(1.55f).clip(RoundedCornerShape(22.dp))
+                                        .background(Brush.linearGradient(listOf(Color(0xFF3B4FA3), Color(0xFF175D79), Color(0xFF111D3D)))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("♫", fontSize = 54.sp, color = Color(0xFFD5F5FF))
+                                        Text("YASIN CAST", style = MaterialTheme.typography.labelLarge, color = Color(0xFFD5F5FF), letterSpacing = 3.sp)
+                                    }
+                                }
+                                Text("مجموعهٔ صوت‌های من", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 14.dp))
+                                Text(entries.size.toString() + " فایل صوتی · فقط روی دستگاه شما", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                                Button(onClick = { selectedTab = "collection" }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("مشاهدهٔ مجموعه") }
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("تازه‌های کتابخانه", style = MaterialTheme.typography.titleLarge)
+                            Text(entries.size.toString() + " فایل", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        if (entries.isEmpty()) {
+                            Text("هنوز فایلی اضافه نشده. از کتابخانه فایل صوتی یا پوشه انتخاب کن.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Button(onClick = { selectedTab = "library" }, modifier = Modifier.fillMaxWidth()) { Text("رفتن به کتابخانه") }
+                        } else {
+                            entries.take(4).forEach { entry ->
+                                GlassCard(modifier = Modifier.fillMaxWidth().clickable { onPlayEntry(entry); selectedTab = "player" }) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Box(modifier = Modifier.size(58.dp).clip(RoundedCornerShape(14.dp)).background(Brush.linearGradient(listOf(Color(0xFF244F86), Color(0xFF1A3158)))), contentAlignment = Alignment.Center) {
+                                            Text("♫", fontSize = 26.sp, color = Color(0xFFBCEBFF))
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(entry.title.substringBeforeLast('.', entry.title), style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                                            Text(if (playedUris[entry.uri] == true) "شنیده‌شده" else (progressLabels[entry.uri] ?: "شروع‌نشده"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text("▶", color = MaterialTheme.colorScheme.primary, fontSize = 20.sp)
+                                    }
+                                }
+                            }
+                            Button(onClick = { selectedTab = "library" }, modifier = Modifier.fillMaxWidth()) { Text("مشاهدهٔ همهٔ فایل‌ها") }
+                        }
+                    }
+                }
+                "collection" -> {
+                    Column(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 14.dp)) {
+                        Text("مجموعهٔ صوت‌های من", style = MaterialTheme.typography.headlineSmall)
+                        Text("فایل‌های محلی واردشده به یاسین‌کست؛ فایل اصلی در محل خودش باقی می‌ماند.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { entries.firstOrNull()?.let(onPlayEntry); if (entries.isNotEmpty()) selectedTab = "player" }, modifier = Modifier.weight(1f), enabled = entries.isNotEmpty()) { Text("پخش مجموعه") }
+                            Button(onClick = { selectedTab = "library" }, modifier = Modifier.weight(1f)) { Text("مدیریت فایل‌ها") }
+                        }
+                        if (entries.isEmpty()) {
+                            Text("این مجموعه هنوز خالی است.", modifier = Modifier.padding(top = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(entries, key = { it.uri }) { entry ->
+                                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                                            Text(entry.title.substringBeforeLast('.', entry.title), style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                                            Text(if (playedUris[entry.uri] == true) "شنیده‌شده" else (progressLabels[entry.uri] ?: "شروع‌نشده"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                                                Button(onClick = { onPlayEntry(entry); selectedTab = "player" }, modifier = Modifier.weight(1f)) { Text("پخش / ادامه") }
+                                                Button(onClick = { onReplayFromStart(entry) }, modifier = Modifier.weight(1f)) { Text("از اول") }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 "library" -> {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
