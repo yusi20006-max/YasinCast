@@ -644,27 +644,43 @@ private fun LibraryAndPlayerScreen(
     }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
-            modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF071326), Color(0xFF102D56), Color(0xFF071326)))).padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF07091F), Color(0xFF0B1030), Color(0xFF07091F)))).padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "یاسین‌کست",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "کتابخانه و پخش‌کنندهٔ صوتی آفلاین",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier.size(46.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF35C7EB), Color(0xFF7654F4)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("♫", fontSize = 28.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "یاسین‌کست",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "کتابخانهٔ صوتی آفلاین",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(shape = RoundedCornerShape(50), color = Color(0xFF153C48)) {
+                    Text("آفلاین", modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        style = MaterialTheme.typography.labelMedium, color = Color(0xFF7DE8F7))
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("home" to "خانه", "library" to "کتابخانه", "settings" to "تنظیمات").forEach { (tab, label) ->
+                listOf("home" to "خانه", "library" to "کتابخانه", "player" to "پخش", "settings" to "تنظیمات").forEach { (tab, label) ->
                     Surface(
                         modifier = Modifier.weight(1f).clickable { selectedTab = tab },
                         shape = RoundedCornerShape(18.dp),
@@ -685,14 +701,26 @@ private fun LibraryAndPlayerScreen(
                 }
             }
             GlassCard(modifier = Modifier.fillMaxWidth().padding(top = 12.dp).clickable { if (selectedUri != null) selectedTab = "player" }) {
-                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                    Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF203C80), Color(0xFF35C7EB)))),
+                        contentAlignment = Alignment.Center
+                    ) { Text(if (playing) "♫" else "▶", fontSize = 24.sp, color = Color.White) }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(if (selectedUri != null) "در حال پخش" else "آمادهٔ شنیدن",
+                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(if (selectedUri != null) title else status,
+                            style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
+                        if (selectedUri != null) Text("سرعت %.1fx".format(speed),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (selectedUri != null) {
-                        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = onPlayPause) { Text(if (playing) "مکث" else "پخش") }
-                            Text("سرعت %.1fx".format(speed), style = MaterialTheme.typography.bodyMedium)
-                        }
+                        Button(onClick = onPlayPause) { Text(if (playing) "مکث" else "پخش") }
                     }
                 }
             }
@@ -703,22 +731,28 @@ private fun LibraryAndPlayerScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text("دوباره به قصه‌ات برگرد", style = MaterialTheme.typography.headlineSmall, color = Color(0xFFF1F7FF))
-                        Text("صوت‌های خودت را یک‌جا نگه دار و هر وقت خواستی ادامه بده.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("از همان‌جایی که مانده‌ای ادامه بده؛ همه‌چیز روی گوشی خودت می‌ماند.",
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         GlassCard(modifier = Modifier.fillMaxWidth().clickable { selectedTab = "collection" }) {
                             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                                 Box(
-                                    modifier = Modifier.fillMaxWidth().aspectRatio(1.55f).clip(RoundedCornerShape(22.dp))
-                                        .background(Brush.linearGradient(listOf(Color(0xFF3B4FA3), Color(0xFF175D79), Color(0xFF111D3D)))),
+                                    modifier = Modifier.fillMaxWidth().aspectRatio(1.65f).clip(RoundedCornerShape(22.dp))
+                                        .background(Brush.linearGradient(listOf(Color(0xFF101A43), Color(0xFF253E88), Color(0xFF15AFCF)))),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("♫", fontSize = 54.sp, color = Color(0xFFD5F5FF))
-                                        Text("YASIN CAST", style = MaterialTheme.typography.labelLarge, color = Color(0xFFD5F5FF), letterSpacing = 3.sp)
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Box(
+                                            modifier = Modifier.size(76.dp).clip(RoundedCornerShape(26.dp))
+                                                .background(Color(0x3335C7EB)),
+                                            contentAlignment = Alignment.Center
+                                        ) { Text("♫", fontSize = 48.sp, color = Color(0xFF9AEFFF)) }
+                                        Text("YASIN CAST", style = MaterialTheme.typography.labelLarge, color = Color(0xFFD5F5FF), letterSpacing = 4.sp)
+                                        Text("صوت‌های تو، همیشه همراهت", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFD5F5FF))
                                     }
                                 }
                                 Text("مجموعهٔ صوت‌های من", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 14.dp))
                                 Text(entries.size.toString() + " فایل صوتی · فقط روی دستگاه شما", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-                                Button(onClick = { selectedTab = "collection" }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("مشاهدهٔ مجموعه") }
+                                Button(onClick = { selectedTab = "collection" }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("ورود به مجموعه  →") }
                             }
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -872,9 +906,11 @@ private fun LibraryAndPlayerScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
+                        Text("اکنون در حال پخش", style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 12.dp))
                         Box(
                             modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(28.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF1D4D86), Color(0xFF14284D), Color(0xFF236A92)))),
+                                .background(Brush.linearGradient(listOf(Color(0xFF101A43), Color(0xFF2677E8), Color(0xFF322A80)))),
                             contentAlignment = Alignment.Center
                         ) {
                             if (coverBitmap != null) {
@@ -895,10 +931,10 @@ private fun LibraryAndPlayerScreen(
                         artist?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 4.dp)) }
                         album?.let { Text("آلبوم: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 2.dp)) }
                         Text(
-                            if (durationMs > 0L) formatPlaybackTime(durationMs) else "مدت فایل نامشخص است",
-                            style = MaterialTheme.typography.bodyMedium,
+                            if (durationMs > 0L) "مدت کل · " + formatPlaybackTime(durationMs) else "مدت فایل نامشخص است",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 6.dp)
+                            modifier = Modifier.padding(top = 8.dp)
                         )
                         Slider(
                             value = if (durationMs > 0L) positionMs.coerceIn(0L, durationMs).toFloat() else 0f,
@@ -911,14 +947,21 @@ private fun LibraryAndPlayerScreen(
                             Text(formatPlaybackTime(positionMs), style = MaterialTheme.typography.bodySmall)
                             Text(if (durationMs > 0L) formatPlaybackTime((durationMs - positionMs).coerceAtLeast(0L)) + " باقی‌مانده" else "—", style = MaterialTheme.typography.bodySmall)
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0x66172042),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x553F5A9B))
                         ) {
-                            Button(onClick = onBack, enabled = selectedUri != null) { Text("۱۵− ثانیه") }
-                            Button(onClick = onPlayPause, enabled = selectedUri != null || entries.isNotEmpty()) { Text(if (playing) "مکث" else "پخش") }
-                            Button(onClick = onForward, enabled = selectedUri != null) { Text("۱۵+ ثانیه") }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(onClick = onBack, enabled = selectedUri != null) { Text("۱۵− ثانیه") }
+                                Button(onClick = onPlayPause, enabled = selectedUri != null || entries.isNotEmpty()) { Text(if (playing) "مکث" else "▶ پخش") }
+                                Button(onClick = onForward, enabled = selectedUri != null) { Text("۱۵+ ثانیه") }
+                            }
                         }
                         Button(onClick = onSpeed, modifier = Modifier.padding(top = 12.dp)) { Text("تغییر سرعت · %.1fx".format(speed)) }
                         OutlinedTextField(
