@@ -644,7 +644,7 @@ private fun LibraryAndPlayerScreen(
     }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Column(
-            modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF071326), Color(0xFF102D56), Color(0xFF071326)))).padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF07091F), Color(0xFF0B1030), Color(0xFF07091F)))).padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -664,7 +664,7 @@ private fun LibraryAndPlayerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("home" to "خانه", "library" to "کتابخانه", "settings" to "تنظیمات").forEach { (tab, label) ->
+                listOf("home" to "خانه", "library" to "کتابخانه", "player" to "پخش", "settings" to "تنظیمات").forEach { (tab, label) ->
                     Surface(
                         modifier = Modifier.weight(1f).clickable { selectedTab = tab },
                         shape = RoundedCornerShape(18.dp),
@@ -708,7 +708,7 @@ private fun LibraryAndPlayerScreen(
                             Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                                 Box(
                                     modifier = Modifier.fillMaxWidth().aspectRatio(1.55f).clip(RoundedCornerShape(22.dp))
-                                        .background(Brush.linearGradient(listOf(Color(0xFF3B4FA3), Color(0xFF175D79), Color(0xFF111D3D)))),
+                                        .background(Brush.linearGradient(listOf(Color(0xFF7654F4), Color(0xFF20C6E8), Color(0xFF273A9A)))),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -874,7 +874,7 @@ private fun LibraryAndPlayerScreen(
                     ) {
                         Box(
                             modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(28.dp))
-                                .background(Brush.linearGradient(listOf(Color(0xFF1D4D86), Color(0xFF14284D), Color(0xFF236A92)))),
+                                .background(Brush.linearGradient(listOf(Color(0xFF7956F3), Color(0xFF2677E8), Color(0xFF322A80)))),
                             contentAlignment = Alignment.Center
                         ) {
                             if (coverBitmap != null) {
