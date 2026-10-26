@@ -623,11 +623,13 @@ private fun LibraryAndPlayerScreen(
     onCancelSleepTimer: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf("home") }
+    var librarySearchQuery by remember { mutableStateOf("") }
+    var collectionSearchQuery by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
     var libraryFilter by remember { mutableStateOf("all") }
     var bookmarkNote by remember { mutableStateOf("") }
     val filteredEntries = entries.filter { entry ->
-        val query = normalizeSearchText(searchQuery)
+        val query = normalizeSearchText(librarySearchQuery)
         val matchesQuery = query.isBlank() || normalizeSearchText(entry.title).contains(query) || normalizeSearchText(entry.uri.substringAfterLast('/')).contains(query)
         val isPlayed = playedUris[entry.uri] == true
         matchesQuery && when (libraryFilter) {
@@ -637,7 +639,7 @@ private fun LibraryAndPlayerScreen(
         }
     }
     val filteredCollectionEntries = entries.filter { entry ->
-        val query = normalizeSearchText(searchQuery)
+        val query = normalizeSearchText(collectionSearchQuery)
         query.isBlank() || normalizeSearchText(entry.title).contains(query) || normalizeSearchText(entry.uri.substringAfterLast('/')).contains(query)
     }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -750,15 +752,15 @@ private fun LibraryAndPlayerScreen(
                         Text("مجموعهٔ صوت‌های من", style = MaterialTheme.typography.headlineSmall)
                         Text("فایل‌های محلی واردشده به یاسین‌کست؛ فایل اصلی در محل خودش باقی می‌ماند.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
                         OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
+                            value = collectionSearchQuery,
+                            onValueChange = { collectionSearchQuery = it },
                             label = { Text("جست‌وجو در این مجموعه") },
                             placeholder = { Text("نام فایل صوتی") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                         )
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { entries.firstOrNull()?.let(onPlayEntry); if (entries.isNotEmpty()) selectedTab = "player" }, modifier = Modifier.weight(1f), enabled = entries.isNotEmpty()) { Text("پخش مجموعه") }
+                            Button(onClick = { filteredCollectionEntries.firstOrNull()?.let(onPlayEntry); if (filteredCollectionEntries.isNotEmpty()) selectedTab = "player" }, modifier = Modifier.weight(1f), enabled = entries.isNotEmpty()) { Text("پخش مجموعه") }
                             Button(onClick = { selectedTab = "library" }, modifier = Modifier.weight(1f)) { Text("مدیریت فایل‌ها") }
                         }
                         if (entries.isEmpty()) {
@@ -792,8 +794,8 @@ private fun LibraryAndPlayerScreen(
                         Button(onClick = onImportFolder, modifier = Modifier.weight(1f)) { Text("افزودن پوشه") }
                     }
                     OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        value = librarySearchQuery,
+                        onValueChange = { librarySearchQuery = it },
                         label = { Text("جست‌وجو در کتابخانه") },
                         placeholder = { Text("عنوان یا نام فایل") },
                         singleLine = true,
@@ -828,7 +830,7 @@ private fun LibraryAndPlayerScreen(
                             )
                         }
                     } else if (filteredEntries.isEmpty()) {
-                        Text(if (searchQuery.isNotBlank()) "نتیجه‌ای برای این جست‌وجو یا فیلتر پیدا نشد." else "فایلی در این دسته وجود ندارد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (librarySearchQuery.isNotBlank()) "نتیجه‌ای برای این جست‌وجو یا فیلتر پیدا نشد." else "فایلی در این دسته وجود ندارد.", modifier = Modifier.fillMaxWidth().weight(1f).padding(24.dp), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp),
